@@ -1,0 +1,88 @@
+package com.myrpc.core.codec;
+
+import com.myrpc.core.protocol.MessageType;
+import com.myrpc.core.protocol.ProtocolConstants;
+import com.myrpc.core.protocol.RpcMessage;
+import com.myrpc.core.serialization.Serializer;
+import com.myrpc.core.serialization.Serializers;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.ByteToMessageDecoder;
+
+import java.util.List;
+
+/**
+ * 协议解码器 —— 入站：把字节流还原成 {@link RpcMessage}。
+ *
+ * <p>继承 {@link ByteToMessageDecoder}，Pipeline 入站方向自动调用。
+ * 数据流：网络 → 字节流 → 本解码器 → {@code RpcMessage} → 业务 Handler。
+ *
+ * <h2>处理粘包/半包的核心逻辑</h2>
+ * <ol>
+ *   <li>先检查可读字节数 ≥ 协议头长度，不够就 {@code return}</li>
+ *   <li>读长度字段，得知整条消息多长</li>
+ *   <li>再检查可读字节数 ≥ 整条消息长度，不够就 {@code return}</li>
+ *   <li>够 → 读取完整消息，组装 {@code RpcMessage}，{@code out.add(msg)}</li>
+ * </ol>
+ *
+ * <p>关键：{@link ByteToMessageDecoder} 会维护一个累积缓冲区，
+ * 每次 {@code return} 后 Netty 会等更多数据到达再重新调用 {@code decode}。
+ * 这就是处理半包（数据没到齐）的机制。
+ *
+ * <p>对应学习文档：{@link /后端知识/中间件/04-自定义通信协议与编解码器} §1.4
+ */
+public class RpcMessageDecoder extends ByteToMessageDecoder {
+
+    @Override
+    protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) {
+        // ① 至少要能读到协议头，否则等更多数据
+        if (in.readableBytes() < ProtocolConstants.HEADER_LENGTH) {
+            return;
+        }
+
+        // ② 读协议头（注意：readXxx 会推进读指针，后面失败需 reset）
+        int magic = in.readInt();
+        byte version = in.readByte();
+        int fullLength = in.readInt();
+        byte messageType = in.readByte();
+        byte serializerType = in.readByte();
+
+        // ③ 校验魔数 —— 拒绝非法连接/脏数据
+        if (magic != ProtocolConstants.MAGIC) {
+            throw new IllegalArgumentException("非法魔数: 0x" + Integer.toHexString(magic)
+                    + "，期望: 0x" + Integer.toHexString(ProtocolConstants.MAGIC));
+        }
+
+        // ④ 计算数据体长度，检查是否够一整条消息
+        int bodyLength = fullLength - ProtocolConstants.HEADER_LENGTH;
+        if (in.readableBytes() < bodyLength) {
+            // 半包：数据体还没到齐，退回读指针等下次
+            in.resetReaderIndex();
+            return;
+        }
+
+        // ⑤ 完整消息，读取数据体字节
+        byte[] body = new byte[bodyLength];
+        in.readBytes(body);
+
+        // ⑥ 按消息类型决定反序列化成什么
+        Serializer serializer = Serializers.of(serializerType);
+        Object data = null;
+        if (bodyLength > 0) {
+            // 心跳包没有数据体
+            data = switch (MessageType.of(messageType)) {
+                case REQUEST -> serializer.deserialize(body, com.myrpc.api.dto.RpcRequest.class);
+                case RESPONSE -> serializer.deserialize(body, com.myrpc.api.dto.RpcResponse.class);
+                case HEARTBEAT -> null;
+            };
+        }
+
+        // ⑦ 组装消息，交给下游 Handler
+        RpcMessage message = new RpcMessage();
+        message.setMessageType(messageType);
+        message.setSerializerType(serializerType);
+        message.setData(data);
+
+        out.add(message);
+    }
+}

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.myrpc</groupId>
+        <artifactId>my-rpc</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>rpc-core</artifactId>
+    <packaging>jar</packaging>
+
+    <name>rpc-core</name>
+    <description>框架核心：协议、序列化、编解码、代理、注册中心抽象、负载均衡、服务端/客户端启动</description>
+
+    <dependencies>
+        <!-- 依赖 api 模块的 DTO -->
+        <dependency>
+            <groupId>com.myrpc</groupId>
+            <artifactId>rpc-api</artifactId>
+        </dependency>
+
+        <!-- Netty：网络传输 -->
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-all</artifactId>
+        </dependency>
+
+        <!-- Kryo：高性能序列化（阶段 5 引入，这里先声明备用） -->
+        <dependency>
+            <groupId>com.esotericsoftware</groupId>
+            <artifactId>kryo</artifactId>
+        </dependency>
+
+        <!-- Curator：Zookeeper 客户端（阶段 9 引入） -->
+        <dependency>
+            <groupId>org.apache.curator</groupId>
+            <artifactId>curator-framework</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.curator</groupId>
+            <artifactId>curator-recipes</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>
