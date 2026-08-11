@@ -31,11 +31,16 @@ import java.util.List;
  *
  * <p>对应学习文档：{@link /后端知识/中间件/04-自定义通信协议与编解码器} §1.4
  */
+// 这里是将数据重新反序列回去
 public class RpcMessageDecoder extends ByteToMessageDecoder {
 
+    // 注意decoder的in和encoder的out的类型都是ByteBuf但是含义刚好相反
+    // 这里是接收ByteBuf然后生成结构化的数据
     @Override
     protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) {
         // ① 至少要能读到协议头，否则等更多数据
+        // 只要调用in.readableBytes()就会将数据读入到缓冲区,先和协议头的长度(11)进行对比
+        // 小于直接return就行
         if (in.readableBytes() < ProtocolConstants.HEADER_LENGTH) {
             return;
         }
@@ -54,6 +59,8 @@ public class RpcMessageDecoder extends ByteToMessageDecoder {
         }
 
         // ④ 计算数据体长度，检查是否够一整条消息
+        // 可以读到协议头部分的整体长度字段,计算是否接收完全
+        // 总长度减去header头的部分,如果和记载的body长度一致
         int bodyLength = fullLength - ProtocolConstants.HEADER_LENGTH;
         if (in.readableBytes() < bodyLength) {
             // 半包：数据体还没到齐，退回读指针等下次

@@ -26,6 +26,7 @@ public final class ProtocolConstants {
 
     private ProtocolConstants() {}
 
+    // 魔数和版本号都是用来确定协议的,握手阶段方便确定
     /** 协议魔数：固定 0x4D595250 = "MYRP" 的 ASCII */
     public static final int MAGIC = 0x4D595250;
 

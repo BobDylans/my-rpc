@@ -27,6 +27,7 @@ import io.netty.handler.codec.MessageToByteEncoder;
  */
 public class RpcMessageEncoder extends MessageToByteEncoder<RpcMessage> {
 
+    // 这个方法相当于将结构化的信息序列化并包裹到对应的信纸中
     @Override
     protected void encode(ChannelHandlerContext ctx, RpcMessage msg, ByteBuf out) {
         // 1. 序列化数据体 —— 先序列化才能知道长度

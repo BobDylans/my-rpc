@@ -20,6 +20,7 @@ import java.util.Arrays;
  * {@link /后端知识/中间件/07-客户端-动态代理与Future异步}
  */
 public class RpcRequest implements Serializable {
+    // 相当于用户将自己的请求包装成这个类
 
     private static final long serialVersionUID = 1L;
 
@@ -27,6 +28,7 @@ public class RpcRequest implements Serializable {
     private long requestId;
 
     /** 目标接口全限定名，如 com.myrpc.api.HelloService */
+    // 服务端据此从注册表中查询具体的对象
     private String interfaceName;
 
     /** 方法名 */

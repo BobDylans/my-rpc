@@ -20,15 +20,18 @@ package com.myrpc.core.protocol;
  *
  * <p>对应学习文档：{@link /后端知识/中间件/04-自定义通信协议与编解码器} §1.3
  */
+// RpcMessage实际上是外层的信纸
 public class RpcMessage {
 
     /** 消息类型：请求 / 响应 / 心跳 */
     private byte messageType;
 
     /** 序列化器类型 code（对应 Serializer#getCode） */
+    // 不同的序列化器最终反序列调用的也不一样
     private byte serializerType;
 
     /** 数据体：业务对象（RpcRequest / RpcResponse）或心跳内容 */
+    // 相当于无论是消费者还是生产者都会将data存放到这个RpcMessage中
     private Object data;
 
     public RpcMessage() {}

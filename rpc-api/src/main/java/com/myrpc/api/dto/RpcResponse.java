@@ -15,6 +15,7 @@ import java.io.Serializable;
  * <p>阶段 06 的核心数据结构。对应学习文档：
  * {@link /后端知识/中间件/06-服务端-Netty与反射调用}
  */
+// 服务方调用结束后将结果包装好后返回
 public class RpcResponse implements Serializable {
 
     private static final long serialVersionUID = 1L;
