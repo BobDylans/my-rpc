@@ -58,7 +58,7 @@ public class RpcRequestHandler extends SimpleChannelInboundHandler<RpcMessage> {
             log.debug("忽略非请求消息: {}", MessageType.of(msg.getMessageType()));
             return;
         }
-
+        // 从msg中提取出来对应的req
         RpcRequest request = (RpcRequest) msg.getData();
         log.debug("收到请求: {}#{}({})", request.getInterfaceName(), request.getMethodName(),
                 java.util.Arrays.toString(request.getParameters()));
@@ -74,6 +74,7 @@ public class RpcRequestHandler extends SimpleChannelInboundHandler<RpcMessage> {
     /**
      * 反射调用目标方法。所有异常都塞进 RpcResponse.message ——
      * 消费者能感知调用失败，而不是被 Netty 吞掉或直接断开连接。
+     * 通过反射调用对应的方法
      */
     private RpcResponse invoke(RpcRequest request) {
         RpcResponse response = new RpcResponse();

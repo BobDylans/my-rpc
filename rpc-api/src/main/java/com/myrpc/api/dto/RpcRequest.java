@@ -39,6 +39,7 @@ public class RpcRequest implements Serializable {
     private Class<?>[] paramTypes;
 
     /** 实际参数值 */
+    // 调用方将参数传入
     private Object[] parameters;
 
     public long getRequestId() { return requestId; }

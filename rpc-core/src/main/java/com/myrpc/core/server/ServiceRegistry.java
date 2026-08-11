@@ -27,6 +27,7 @@ public class ServiceRegistry {
      * <p>为什么用 ConcurrentHashMap 而不是 HashMap？
      * 服务端是 Netty 多线程模型：多个 worker 线程可能同时处理请求并发读。
      * ConcurrentHashMap 保证并发读安全且无锁竞争（读操作不加锁）。
+     * 将对应的方法注入
      */
     private final Map<String, Object> serviceMap = new ConcurrentHashMap<>();
 

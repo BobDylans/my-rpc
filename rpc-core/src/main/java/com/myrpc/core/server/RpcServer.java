@@ -84,7 +84,7 @@ public class RpcServer {
                 .option(ChannelOption.SO_BACKLOG, 128)
                 // 连接 socket 选项：TCP keepalive
                 .childOption(ChannelOption.SO_KEEPALIVE, true);
-
+        // 这里的sync才是真正启动
         ChannelFuture future = bootstrap.bind(port).sync();
         log.info("Server started on port {}", port);
     }
