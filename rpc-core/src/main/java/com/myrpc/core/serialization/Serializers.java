@@ -21,8 +21,10 @@ public final class Serializers {
     private static final Map<Integer, Serializer> REGISTRY = new ConcurrentHashMap<>();
 
     static {
-        // 默认注册 JDK 实现（阶段 5 追加 Kryo）
+        // 注册两种序列化器，按 code 查找
+        // code=0 → JDK，code=1 → Kryo
         register(new JdkSerializer());
+        register(new KryoSerializer());
     }
 
     private Serializers() {}
