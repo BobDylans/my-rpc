@@ -46,6 +46,9 @@ public class RpcMessageDecoder extends ByteToMessageDecoder {
         }
 
         // ② 读协议头（注意：readXxx 会推进读指针，后面失败需 reset）
+        // 先标记当前消息起点：半包时 reset 回到这里，而不是回退到整个缓冲区开头。
+        // 否则多条消息粘包时，前一条已解出、后一条半包，reset 会回到 0 重新解码前一条 → 死循环。
+        in.markReaderIndex();
         int magic = in.readInt();
         byte version = in.readByte();
         int fullLength = in.readInt();
