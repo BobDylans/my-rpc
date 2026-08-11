@@ -2,6 +2,8 @@ package com.myrpc.core.server;
 
 import com.myrpc.core.codec.RpcMessageDecoder;
 import com.myrpc.core.codec.RpcMessageEncoder;
+import com.myrpc.core.registry.CuratorUtils;
+import com.myrpc.core.registry.ZkServiceRegistry;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
@@ -12,6 +14,10 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 
 /**
  * RPC 服务端 —— 封装 Netty ServerBootstrap，监听端口接收请求并反射调用。
@@ -43,12 +49,21 @@ public class RpcServer {
 
     private final int port;
     private final ServiceRegistry registry = new ServiceRegistry();
+    /** 注册中心（可选）：传了就自动把服务登记到 ZK（阶段 09） */
+    private final ZkServiceRegistry zkRegistry;
 
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
 
+    /** 不接注册中心：仅本地直连（阶段 6-8 的用法） */
     public RpcServer(int port) {
+        this(port, null);
+    }
+
+    /** 接注册中心：启动后自动把已注册服务登记到 ZK */
+    public RpcServer(int port, ZkServiceRegistry zkRegistry) {
         this.port = port;
+        this.zkRegistry = zkRegistry;
     }
 
     /**
@@ -92,13 +107,48 @@ public class RpcServer {
         // 这里的sync才是真正启动
         ChannelFuture future = bootstrap.bind(port).sync();
         log.info("Server started on port {}", port);
+
+        // 阶段 09：绑定成功后，把已注册的所有服务登记到注册中心
+        if (zkRegistry != null) {
+            registerAllServicesToZk();
+            // 优雅关闭时自动反注册（Ctrl+C / kill 都走这里）
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                log.info("服务端关闭，清理注册中心...");
+                CuratorUtils.clearRegistry(CuratorUtils.getZkClient(), getLocalAddress());
+                stop();
+            }, "zk-cleanup-shutdown-hook"));
+        }
     }
 
     /**
-     * 优雅关闭：停止接收新连接 + 释放已连接资源。
+     * 把本地注册表里的所有服务批量登记到 ZK。
+     * 每个服务在 ZK 上表现为：持久节点（服务名）+ 临时节点（本机地址）。
+     */
+    private void registerAllServicesToZk() {
+        InetSocketAddress localAddress = getLocalAddress();
+        for (String serviceName : registry.getAllServiceNames()) {
+            zkRegistry.register(serviceName, localAddress);
+        }
+    }
+
+    /** 本机地址：主机名解析的 IP + 监听端口 */
+    private InetSocketAddress getLocalAddress() {
+        try {
+            return new InetSocketAddress(InetAddress.getLocalHost().getHostAddress(), port);
+        } catch (UnknownHostException e) {
+            throw new IllegalStateException("无法获取本机地址", e);
+        }
+    }
+
+    /**
+     * 优雅关闭：主动反注册 + 停止接收新连接 + 释放资源。
      * shutdownGracefully 会等待在途请求处理完再退出，不会粗暴断开。
      */
     public void stop() {
+        // 阶段 09：优雅关闭路径主动反注册（shutdown hook 兜底 JVM 退出场景）
+        if (zkRegistry != null) {
+            CuratorUtils.clearRegistry(CuratorUtils.getZkClient(), getLocalAddress());
+        }
         if (workerGroup != null) {
             workerGroup.shutdownGracefully();
         }

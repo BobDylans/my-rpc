@@ -1,6 +1,7 @@
 package com.myrpc.core.server;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -56,5 +57,13 @@ public class ServiceRegistry {
      */
     public boolean contains(String interfaceName) {
         return serviceMap.containsKey(interfaceName);
+    }
+
+    /**
+     * 返回所有已注册的服务名（接口全限定名）。
+     * 阶段 09 用：启动时把所有服务批量登记到注册中心。
+     */
+    public Set<String> getAllServiceNames() {
+        return serviceMap.keySet();
     }
 }
