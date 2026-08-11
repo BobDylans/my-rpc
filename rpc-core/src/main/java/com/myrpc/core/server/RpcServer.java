@@ -15,6 +15,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * RPC 服务端 —— 封装 Netty ServerBootstrap，监听端口接收请求并反射调用。
+ * 这个只是服务端的,实际上还需要有客户端
+ * 这个类的作用就是接受来自客户端的连接,并且解析,并且调用
  *
  * <h2>Reactor 主从模型（为什么两个 EventLoopGroup）</h2>
  * <ul>
@@ -64,14 +66,17 @@ public class RpcServer {
     public void start() throws InterruptedException {
         bossGroup = new NioEventLoopGroup(1);            // accept 线程，1 个足够
         workerGroup = new NioEventLoopGroup();           // IO 线程，默认 2×CPU
-
+        // ServerBootstrap 这个类相当于包工头,将各个组建集合在一起
         ServerBootstrap bootstrap = new ServerBootstrap();
         bootstrap.group(bossGroup, workerGroup)
                 .channel(NioServerSocketChannel.class)
+                // 这个对应的实际上就是处理的流程
                 .childHandler(new ChannelInitializer<SocketChannel>() {
                     @Override
                     protected void initChannel(SocketChannel ch) {
                         ch.pipeline()
+                                // 这里传入的encoder和decoder是我们自己实现的
+                                // decoder解码过程中就涉及相关的粘包和半包的处理
                                 // 入站：字节流 → RpcMessage（含粘包/半包处理）
                                 .addLast(new RpcMessageDecoder())
                                 // 出站：RpcMessage → 字节流
