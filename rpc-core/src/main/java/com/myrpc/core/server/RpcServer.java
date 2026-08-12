@@ -12,12 +12,14 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.timeout.IdleStateHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.concurrent.TimeUnit;
 
 /**
  * RPC 服务端 —— 封装 Netty ServerBootstrap，监听端口接收请求并反射调用。
@@ -82,6 +84,7 @@ public class RpcServer {
         bossGroup = new NioEventLoopGroup(1);            // accept 线程，1 个足够
         workerGroup = new NioEventLoopGroup();           // IO 线程，默认 2×CPU
         // ServerBootstrap 这个类相当于包工头,将各个组建集合在一起
+        // 这个是netty的包,设置了两个循环组
         ServerBootstrap bootstrap = new ServerBootstrap();
         bootstrap.group(bossGroup, workerGroup)
                 .channel(NioServerSocketChannel.class)
@@ -90,6 +93,9 @@ public class RpcServer {
                     @Override
                     protected void initChannel(SocketChannel ch) {
                         ch.pipeline()
+                                // 阶段 13：读空闲 60s 判定客户端下线
+                                // 客户端心跳 15s 一次，三次心跳不出回包肯定是断了
+                                .addLast(new IdleStateHandler(60, 0, 0, TimeUnit.SECONDS))
                                 // 这里传入的encoder和decoder是我们自己实现的
                                 // decoder解码过程中就涉及相关的粘包和半包的处理
                                 // 入站：字节流 → RpcMessage（含粘包/半包处理）

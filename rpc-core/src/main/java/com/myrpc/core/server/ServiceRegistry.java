@@ -39,6 +39,8 @@ public class ServiceRegistry {
      * @param impl  实现类实例（如 new HelloServiceImpl()）
      */
     public void registerService(Class<?> iface, Object impl) {
+        // 接口全限定名,以及对应的方法
+        // 注意看下面的getService,实际上就是这样拿到对应的实现类
         serviceMap.put(iface.getName(), impl);
     }
 

@@ -11,15 +11,18 @@ import com.myrpc.core.registry.ServiceDiscoveryCache;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.timeout.IdleStateHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * RPC 客户端 —— 封装 Netty Bootstrap：连接服务端、发送请求。
@@ -45,6 +48,14 @@ public class RpcClient {
 
     private static final Logger log = LoggerFactory.getLogger(RpcClient.class);
 
+    // ───── 阶段 13：心跳与重连参数 ─────
+    /** 连接重试最大次数 */
+    private static final int MAX_RETRY = 3;
+    /** 初始重试延迟（毫秒），指数退避 1s → 2s → 4s */
+    private static final long INITIAL_RETRY_MILLIS = 1000;
+    /** 重试延迟上限，避免退避过长 */
+    private static final long MAX_RETRY_MILLIS = 8000;
+
     // ───── 阶段 8：直连模式（保留，向后兼容）─────
     /** 直连地址（host/port 模式专用，null 表示走 ZK 发现） */
     private final String directHost;
@@ -62,6 +73,9 @@ public class RpcClient {
     private volatile Channel channel;
     /** 当前连接的目标地址（连接断开重连时据此判断是否换地址） */
     private volatile InetSocketAddress connectedAddr;
+    /** 指数退避的当前延迟（成功后重置为初始值） */
+    private final java.util.concurrent.atomic.AtomicLong retryDelayMillis =
+            new java.util.concurrent.atomic.AtomicLong(INITIAL_RETRY_MILLIS);
 
     /**
      * 阶段 8 构造：直连模式（地址写死，不用 ZK）。
@@ -146,18 +160,51 @@ public class RpcClient {
             Bootstrap bootstrap = new Bootstrap();
             bootstrap.group(group)
                     .channel(NioSocketChannel.class)
+                    // 连接超时，避免连不上一直吊着
+                    .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
                     .handler(new ChannelInitializer<SocketChannel>() {
                         @Override
                         protected void initChannel(SocketChannel ch) {
                             ch.pipeline()
+                                    // 阶段 13：心跳保活
+                                    // readerIdle=30s（读不到数据判定连接空闲）
+                                    // writerIdle=15s（15s 没写数据 → 触发发心跳）
+                                    .addLast(new IdleStateHandler(30, 15, 0, TimeUnit.SECONDS))
                                     .addLast(new RpcMessageDecoder()) // 入站：字节 → RpcMessage
                                     .addLast(new RpcMessageEncoder()) // 出站：RpcMessage → 字节
+                                    .addLast(new RpcHeartbeatHandler()) // 写空闲发心跳
                                     .addLast(new RpcResponseHandler()); // 配对响应
                         }
                     });
-            channel = bootstrap.connect(target.getHostString(), target.getPort()).sync().channel();
+            // 阶段 13：连接失败重试（指数退避）
+            Channel connected = connectWithRetry(bootstrap, target, MAX_RETRY);
+            channel = connected;
             connectedAddr = target;
+            retryDelayMillis.set(INITIAL_RETRY_MILLIS);  // 成功后重置退避
             return channel;
+        }
+    }
+
+    /**
+     * 指数退避重试连接。1s → 2s → 4s，上限 8s，最多 3 次。
+     * <p>为什么指数退避：连续失败说明服务不可用，重试间隔快速增大
+     * 避免压淓还没恢复的服务（重连风暴）。
+     */
+    private Channel connectWithRetry(Bootstrap bootstrap, InetSocketAddress target, int retryLeft)
+            throws InterruptedException {
+        try {
+            return bootstrap.connect(target.getHostString(), target.getPort()).sync().channel();
+        } catch (Exception e) {
+            if (retryLeft <= 0) {
+                log.error("连接 {}:{} 失败，已用尽重试次数", target.getHostString(), target.getPort(), e);
+                throw e;
+            }
+            long delay = retryDelayMillis.get();
+            log.warn("连接 {}:{} 失败，{}s 后重试（剩余 {}次）",
+                    target.getHostString(), target.getPort(), delay / 1000, retryLeft);
+            Thread.sleep(delay);
+            retryDelayMillis.set(Math.min(delay * 2, MAX_RETRY_MILLIS));  // 指数退避
+            return connectWithRetry(bootstrap, target, retryLeft - 1);
         }
     }
 

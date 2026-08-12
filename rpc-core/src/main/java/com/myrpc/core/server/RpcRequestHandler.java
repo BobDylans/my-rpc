@@ -6,6 +6,8 @@ import com.myrpc.core.protocol.MessageType;
 import com.myrpc.core.protocol.RpcMessage;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.handler.timeout.IdleState;
+import io.netty.handler.timeout.IdleStateEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,6 +88,7 @@ public class RpcRequestHandler extends SimpleChannelInboundHandler<RpcMessage> {
                 throw new IllegalStateException("服务未注册: " + request.getInterfaceName());
             }
             // ② 反射定位方法：getMethod(name, paramTypes) 需要精确参数类型（支持重载）
+            // 获取的是实现类.还需要根据参数中的了类名来调用对应的方法
             Class<?> clazz = Class.forName(request.getInterfaceName());
             Method method = clazz.getMethod(request.getMethodName(), request.getParamTypes());
             // ③ 反射调用
@@ -108,5 +111,17 @@ public class RpcRequestHandler extends SimpleChannelInboundHandler<RpcMessage> {
         // 兜底：编解码异常、协议错误等链上异常走这里，记日志并断开连接
         log.error("连接处理异常", cause);
         ctx.close();
+    }
+
+    @Override
+    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+        // 阶段 13：读空闲 60s，客户端可能已断线（进程崩溃/拔网线）
+        // 服务端主动关闭，释放资源；客户端会检测到断开走重连
+        if (evt instanceof IdleStateEvent event && event.state() == IdleState.READER_IDLE) {
+            log.info("服务端读空闲，关闭连接 {}", ctx.channel().remoteAddress());
+            ctx.close();
+            return;
+        }
+        super.userEventTriggered(ctx, evt);
     }
 }

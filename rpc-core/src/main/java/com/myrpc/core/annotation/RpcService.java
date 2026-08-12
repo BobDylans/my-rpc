@@ -33,14 +33,19 @@ import org.springframework.stereotype.Component;
  *
  * <p>对应学习文档：{@link /后端知识/中间件/12-注解驱动与Spring集成} §1.1 §1.2
  */
-@Target(ElementType.TYPE)          // 标在类上
-@Retention(RetentionPolicy.RUNTIME) // 运行时保留（反射能读到）
+@Target(ElementType.TYPE)          // 标在类上 限定该注解只能加到类,接口和枚举上,标在方法或者类上会报错
+@Retention(RetentionPolicy.RUNTIME) // 运行时保留（反射能读到）让注解在运行时生效 这个一般就是spring框架反射时的内容注解
 @Component                          // 让 Spring 当作组件扫描，无需再标 @Component
+// @interface 是声明注解的关键字,和class,interface等都是并列的
+// 本身只有标记的作用,具体的实现逻辑在postProcesser
 public @interface RpcService {
 
+    // 这是一个自定义的注解
     /**
      * 指定暴露的接口。默认 {@code void.class} 表示自动推断（取实现类的第一个接口）。
      * 实现多个接口时必须显式指定。
      */
+    // 这个实际上就是注解的属性,使用该自定义注解时需要在参数中添加(iface="HelloService.class")
+    // 后面的default代表的是默认是void
     Class<?> iface() default void.class;
 }

@@ -30,10 +30,13 @@ import java.util.Arrays;
  *
  * <p>对应学习文档：{@link /后端知识/中间件/12-注解驱动与Spring集成} §1.2 §1.4
  */
+// 继承了BeanPostProcessor,就成为了spring的 Bean工厂拦截器 
+// spring创建bean之后,看到被 @RpcService 修饰的bean,就会触发这个
+// 具体的触发时间是在初始化基本结束时,所有bean都创建完成后
 public class RpcServiceBeanPostProcessor implements BeanPostProcessor {
 
     private static final Logger log = LoggerFactory.getLogger(RpcServiceBeanPostProcessor.class);
-
+    // 将server作为属性注入
     private final RpcServer rpcServer;
 
     public RpcServiceBeanPostProcessor(RpcServer rpcServer) {
@@ -42,7 +45,11 @@ public class RpcServiceBeanPostProcessor implements BeanPostProcessor {
 
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
+        // 获取被加载的bean的类型
         Class<?> beanClass = bean.getClass();
+        // 这个注解实际上只能放到接口上面
+        // 然后这里会获取所有实现了该接口的实现类
+        // 如果没有实现类就会报错
         RpcService annotation = beanClass.getAnnotation(RpcService.class);
         if (annotation == null) {
             return bean;  // 没标 @RpcService，跳过
@@ -53,6 +60,7 @@ public class RpcServiceBeanPostProcessor implements BeanPostProcessor {
         log.info("发现 @RpcService：{} → 暴露接口 [{}]", beanClass.getSimpleName(), serviceInterface.getName());
 
         // 注册到 RpcServer（服务端会把这个 bean 当作接口的实现）
+        // 也就是只要有RpcSercice注解的类,
         rpcServer.registerService(serviceInterface, bean);
 
         return bean;
@@ -71,13 +79,13 @@ public class RpcServiceBeanPostProcessor implements BeanPostProcessor {
         if (explicit != void.class) {
             return explicit;
         }
-
         Class<?>[] interfaces = beanClass.getInterfaces();
         if (interfaces.length == 0) {
             throw new IllegalStateException("@" + RpcService.class.getSimpleName()
                     + " 标在 " + beanClass.getName() + " 上，但该类没实现任何接口。"
                     + "RPC 必须基于接口代理，请实现一个接口或显式指定 iface。");
         }
+        // 这里默认只会取第一个
         if (interfaces.length > 1) {
             log.warn("{} 实现了多个接口 {}，默认取第一个。"
                     + "如需指定，请用 @RpcService(iface = Xxx.class)",

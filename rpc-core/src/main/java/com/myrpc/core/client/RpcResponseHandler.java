@@ -5,6 +5,8 @@ import com.myrpc.core.protocol.MessageType;
 import com.myrpc.core.protocol.RpcMessage;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.handler.timeout.IdleState;
+import io.netty.handler.timeout.IdleStateEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,6 +49,19 @@ public class RpcResponseHandler extends SimpleChannelInboundHandler<RpcMessage> 
         log.warn("连接断开，未完成请求 {} 个全部标记失败", UnprocessedRequests.pendingCount());
         UnprocessedRequests.failAll(new IllegalStateException("RPC 连接已断开"));
         ctx.fireChannelInactive();
+    }
+
+    @Override
+    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+        // 阶段 13：读空闲 30s，说明服务端好久没回任何消息（连心跳都没回）
+        // 判定连接已失效（比如服务端进程死、拔网线、ZK 还没来得及感知）
+        // 主动关闭连接，触发 getChannel 的重连逻辑
+        if (evt instanceof IdleStateEvent event && event.state() == IdleState.READER_IDLE) {
+            log.warn("读空闲 {}，判定连接失效，主动关闭", ctx.channel().remoteAddress());
+            ctx.close();
+            return;
+        }
+        super.userEventTriggered(ctx, evt);
     }
 
     @Override
