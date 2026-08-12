@@ -53,6 +53,7 @@ public class ZkServiceDiscovery implements ServiceDiscovery {
 
     @Override
     public List<InetSocketAddress> lookup(String serviceName) {
+        // 根据路径查找对应的服务提供节点的信息(主要就是port和host)
         String servicePath = rootPath + "/" + serviceName;
         try {
             if (client.checkExists().forPath(servicePath) == null) {
@@ -72,6 +73,8 @@ public class ZkServiceDiscovery implements ServiceDiscovery {
 
     @Override
     public void subscribe(String serviceName, ServiceChangeListener listener) {
+        // 和lookup功能类似但是这个是在服务提供者变更时自动接收
+        // 相当于监听一个zk,如果发生服务的变化就会接收到
         String servicePath = rootPath + "/" + serviceName;
 
         // 复用已建的 watcher（避免对同一服务重复订阅）
