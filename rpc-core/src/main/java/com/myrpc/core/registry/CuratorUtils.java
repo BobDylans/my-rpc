@@ -65,6 +65,7 @@ public final class CuratorUtils {
         if (current != null && current.isStarted()) {
             return current;
         }
+        // 使用一个单独的实例来确保线程安全
         synchronized (LOCK) {
             current = zkClient;
             if (current != null && current.isStarted()) {
@@ -76,6 +77,9 @@ public final class CuratorUtils {
                     .sessionTimeoutMs(SESSION_TIMEOUT_MS)
                     .retryPolicy(retryPolicy)
                     .build();
+            // 创建好zk后启动
+            // 启动之后就进入了一个session
+            // 如果session结束这个节点就会自动从zk server中删除
             zkClient.start();
             // start() 是异步的！这里阻塞等 session 真正建立，连不上立刻抛异常
             // （否则后续 create 会无限卡在重试上）
@@ -105,6 +109,7 @@ public final class CuratorUtils {
      */
     public static void createPersistentNode(CuratorFramework client, String path) {
         try {
+            // 先检查是否已经存在,如果已经有了就直接退出
             if (client.checkExists().forPath(path) != null) {
                 return;
             }
@@ -128,7 +133,10 @@ public final class CuratorUtils {
             }
             client.create().creatingParentsIfNeeded()
                     .withMode(CreateMode.EPHEMERAL)
+                    // 只传递了path没有传data
+                    // 相当于将节点的信息放到了路径中  /my-rpc / com.myrpc.HelloService / 192.168.1.5:7400
                     .forPath(path);
+            // 添加到本进程中的注册了哪些节点中
             REGISTERED_PATH_SET.add(path);
             log.info("注册服务节点: {}", path);
         } catch (Exception e) {

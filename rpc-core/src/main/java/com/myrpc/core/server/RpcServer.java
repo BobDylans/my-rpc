@@ -109,6 +109,7 @@ public class RpcServer {
         log.info("Server started on port {}", port);
 
         // 阶段 09：绑定成功后，把已注册的所有服务登记到注册中心
+        // 如果之前就将注册中心注入
         if (zkRegistry != null) {
             registerAllServicesToZk();
             // 优雅关闭时自动反注册（Ctrl+C / kill 都走这里）

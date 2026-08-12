@@ -31,9 +31,20 @@ public class ZkServiceRegistry implements ServiceRegistry {
     public void register(String serviceName, InetSocketAddress address) {
         CuratorFramework client = CuratorUtils.getZkClient();
         String servicePath = CuratorUtils.ZK_REGISTER_ROOT_PATH + "/" + serviceName;
+        // 注意zk的结构,实际上是类似树的结构
+        // 持久节点和临时节点的区别就是前者必须手动调用delete才能删除,后者则是根据session的存货状态
+        /**  ├── my-rpc                     ← 普通节点(你代码里建的,持久)
+  │          └── com.myrpc.HelloService ← 普通节点(服务名,持久)
+  │            ├── 192.168.1.5:7400   ← 叶子节点(实例A,临时)
+  │            ├── 192.168.1.5:7401   ← 叶子节点(实例B,临时)
+  │            └── 192.168.1.6:7400   ← 叶子节点(实例C,临时)
+         */
+
         // 服务名是持久节点：所有 Provider 共享，全下线也不删（留着给后来者挂）
+        // 持久节点本身不是具体的服务,它只是一个map
         CuratorUtils.createPersistentNode(client, servicePath);
         // 实例地址是临时节点：本 Provider 独占，session 断开自动消失
+        // 具体提供服务的节点是临时的,如果下线了也会清楚在zookeeper中的注册
         CuratorUtils.createEphemeralNode(client, CuratorUtils.buildRegisterPath(serviceName, address));
     }
 

@@ -29,6 +29,7 @@ public final class UnprocessedRequests {
      * 注意：complete 后要 remove —— 否则已完成的请求留在表里，长时间运行会内存泄漏。
      * complete 方法里 remove，保证"配对即清理"。
      * 实际上这里存储着多个future任务,通过唯一的requestId将他们串联起来
+     * 相当于将任务存储在了当前的这个类中,完成是也是调用complete根据requestId从MAP中取出对应的future
      */
     private static final Map<Long, CompletableFuture<RpcResponse>> MAP = new ConcurrentHashMap<>();
 
