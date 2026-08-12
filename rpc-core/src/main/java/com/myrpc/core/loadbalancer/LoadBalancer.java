@@ -22,5 +22,7 @@ public interface LoadBalancer {
      * @param key       用于一致性哈希的 key（如 requestId）；随机/轮询可忽略
      * @return 选中的地址；列表为空返回 null
      */
+    // 之前我们已经实现了从zk中获取到已经注册好的服务地址,
+    // 这个接口定义了如何实现分发请求
     InetSocketAddress select(List<InetSocketAddress> addresses, String key);
 }

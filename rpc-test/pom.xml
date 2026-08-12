@@ -25,6 +25,12 @@
             <groupId>com.myrpc</groupId>
             <artifactId>rpc-consumer</artifactId>
         </dependency>
+
+        <!-- Spring：阶段 12 注解驱动 demo -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+        </dependency>
     </dependencies>
 
 </project>

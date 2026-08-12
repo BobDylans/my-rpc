@@ -15,6 +15,7 @@ import java.util.concurrent.ThreadLocalRandom;
 public class RandomLoadBalancer implements LoadBalancer {
 
     @Override
+    // 这里是随机获取到一个地址
     public InetSocketAddress select(List<InetSocketAddress> addresses, String key) {
         if (addresses == null || addresses.isEmpty()) {
             return null;

@@ -1,0 +1,30 @@
+package com.myrpc.test.spring;
+
+import com.myrpc.api.HelloService;
+import com.myrpc.core.annotation.RpcService;
+
+/**
+ * 阶段 12 Spring 注解驱动 demo —— Provider 侧。
+ *
+ * <p>标 {@code @RpcService} 后，{@code RpcServiceBeanPostProcessor}
+ * 会自动把这个 bean 注册到 {@code RpcServer}，暴露为 RPC 服务。
+ *
+ * <p>对比阶段 8 直连 demo 的写法：
+ * <pre>
+ *   // 阶段 8 手动注册：
+ *   server.registerService(HelloService.class, new HelloServiceImpl());
+ *
+ *   // 阶段 12 注解驱动：
+ *   @RpcService
+ *   public class HelloServiceImpl implements HelloService { ... }
+ *   // BeanPostProcessor 自动扫描注册，不用写注册代码
+ * </pre>
+ */
+@RpcService
+public class SpringHelloServiceImpl implements HelloService {
+
+    @Override
+    public String sayHi(String name) {
+        return "Hi, " + name + " (from Spring RPC server)";
+    }
+}

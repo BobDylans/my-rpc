@@ -32,6 +32,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class RoundRobinLoadBalancer implements LoadBalancer {
 
     /** 全局自增计数器（所有调用共享，保证依次轮询） */
+    // 自增调用
     private final AtomicInteger counter = new AtomicInteger(0);
 
     @Override
@@ -41,6 +42,7 @@ public class RoundRobinLoadBalancer implements LoadBalancer {
         }
         int size = addresses.size();
         // 取绝对值防止 Integer 溢出到负数导致取模为负
+        // 多个服务循环请求,简单常见的分发
         int idx = Math.abs(counter.getAndIncrement()) % size;
         return addresses.get(idx);
     }
