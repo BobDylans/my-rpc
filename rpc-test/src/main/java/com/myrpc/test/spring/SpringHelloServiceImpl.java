@@ -1,7 +1,12 @@
 package com.myrpc.test.spring;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+
 import com.myrpc.api.HelloService;
 import com.myrpc.core.annotation.RpcService;
+import com.sun.tools.javac.util.List;
 
 /**
  * 阶段 12 Spring 注解驱动 demo —— Provider 侧。
@@ -23,8 +28,22 @@ import com.myrpc.core.annotation.RpcService;
 @RpcService
 public class SpringHelloServiceImpl implements HelloService {
 
+    List<Student> students = Arrays.asList(
+    new Student("Alice", 22, 85.5),
+    new Student("Bob", 19, 72.0),
+    new Student("Charlie", 25, 91.0),
+    new Student("Diana", 20, 68.5),
+    new Student("Ethan", 23, 79.0)
+    );
     @Override
     public String sayHi(String name) {
+        Collections.sort(students, new Comparator<Student>() {
+        @Override
+        public int compare(Student s1, Student s2) {
+        return Integer.compare(s1.getAge(), s2.getAge());
+        }
+      });
         return "Hi, " + name + " (from Spring RPC server)";
     }
+
 }
