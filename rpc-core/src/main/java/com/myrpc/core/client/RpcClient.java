@@ -114,6 +114,7 @@ public class RpcClient {
      * 如果当前连接还活着且指向同一服务，复用；否则重新选择并建连。
      */
     public void send(RpcRequest request) throws InterruptedException {
+        // 通过直连或者注册中心获取到目标服务的地址
         InetSocketAddress target = resolveTarget(request.getInterfaceName());
         if (target == null) {
             throw new RuntimeException("无可用服务实例: " + request.getInterfaceName());
@@ -141,6 +142,8 @@ public class RpcClient {
     /**
      * 获取共享连接：懒连接 + 断线自动重连。
      * 双检锁：多个线程同时发现连接失效时，只允许一个重建，避免连接风暴。
+     * 
+     * 相当于根据地址和端口建立一个长连接避免反复简历tcp连接
      *
      * <p>阶段 10 改造：连接以 target 地址为准。如果 target 变了（负载均衡选了新地址），
      * 旧连接必须重建。
@@ -151,6 +154,8 @@ public class RpcClient {
         if (cur != null && cur.isActive() && target.equals(connectedAddr)) {
             return cur;
         }
+        // 建立连接时保证同步
+        // 经典双检锁DCL
         synchronized (this) {
             cur = channel;
             if (cur != null && cur.isActive() && target.equals(connectedAddr)) {

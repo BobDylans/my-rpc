@@ -93,6 +93,7 @@ public class RpcServer {
                     @Override
                     protected void initChannel(SocketChannel ch) {
                         ch.pipeline()
+                                // pipeline 实际上就是一条处理流程,包含入站解码,出站编码,业务逻辑
                                 // 阶段 13：读空闲 60s 判定客户端下线
                                 // 客户端心跳 15s 一次，三次心跳不出回包肯定是断了
                                 .addLast(new IdleStateHandler(60, 0, 0, TimeUnit.SECONDS))
@@ -103,6 +104,7 @@ public class RpcServer {
                                 // 出站：RpcMessage → 字节流
                                 .addLast(new RpcMessageEncoder())
                                 // 业务：反射调用
+                                // 将具体的处理逻辑添加到了这里
                                 .addLast(new RpcRequestHandler(registry));
                     }
                 })
