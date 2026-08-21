@@ -1,4 +1,5 @@
-import java.util.*;
+package com.myrpc.test.spring;
+
 
 public class Student {
     private String name;
@@ -9,6 +10,30 @@ public class Student {
         this.name = name;
         this.age = age;
         this.score = score;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public void setName(String name) {
+      this.name = name;
+    }
+
+    public int getAge() {
+      return age;
+    }
+
+    public void setAge(int age) {
+      this.age = age;
+    }
+
+    public double getScore() {
+      return score;
+    }
+
+    public void setScore(double score) {
+      this.score = score;
     }
 
     // getter / setter / toString 请自行生成（IDE 自动生成即可）
